@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bennfoglaló (osztás) gyakorlás (60 feladat)</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body { margin: 0; padding: 24px; background: #f6f7fb; }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 22px; }
+    .sub { margin: 0 0 18px; color: #444; }
+    .card { background: #fff; border-radius: 14px; padding: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.06); }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 14px 0 18px; }
+    button { border: 0; border-radius: 10px; padding: 10px 14px; cursor: pointer; font-weight: 600; box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+    button.primary { background: #2563eb; color: #fff; }
+    button.secondary { background: #e5e7eb; color: #111827; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .score { font-weight: 700; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    @media (min-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .row { display: grid; grid-template-columns: 44px 1fr 160px; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; border: 1px solid #eef2f7; background: #fafbff; }
+    .num { font-variant-numeric: tabular-nums; color: #111827; }
+    .expr { font-size: 16px; }
+    .right { display:block; font-size: 12px; color: #374151; margin-top: 4px; }
+    input.answer { width: 100%; padding: 9px 10px; border-radius: 10px; border: 2px solid #e5e7eb; outline: none; font-size: 16px; font-variant-numeric: tabular-nums; background: #fff; }
+    input.answer:focus { border-color: #93c5fd; }
+    input.answer:disabled { background: #f3f4f6; color: #111827; }
+    .ok { border-color: #22c55e !important; background: #f0fdf4 !important; }
+    .bad { border-color: #ef4444 !important; background: #fef2f2 !important; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Bennfoglaló (osztás) – 60 feladat</h1>
+    <p class="sub">Írd be a hányadost! Ellenőrzés után zárol, és a hibásaknál megmutatja a helyes választ.</p>
+    <div class="card">
+      <div class="controls">
+        <button class="primary" id="checkBtn">Ellenőrzés</button>
+        <button class="secondary" id="newBtn">Új feladatsor</button>
+        <span class="score" id="scoreText">Eredmény: – / 60</span>
+      </div>
+      <div class="grid" id="tasks"></div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const tasksEl = document.getElementById("tasks");
+  const scoreText = document.getElementById("scoreText");
+  const checkBtn = document.getElementById("checkBtn");
+  const newBtn = document.getElementById("newBtn");
+  let locked = false;
+  let problems = [];
+
+  const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+  // Nehézségi lépcső:
+  // 1–20: osztás 2,3,4,5-tel (könnyű)
+  // 21–40: osztás 6,7,8,9-cel (közepes)
+  // 41–60: vegyes 2–12-vel (nehezebb)
+  // Mindig maradék nélküli osztás!
+  const generate = () => {
+    const ps = [];
+    const easy = [2,3,4,5];
+    const mid  = [6,7,8,9];
+
+    const make = (divisorMin, divisorMax) => {
+      const d = randInt(divisorMin, divisorMax);
+      const q = randInt(2, 12);        // hányados
+      return { a: d*q, b: d, q };
+    };
+
+    for (let i=0;i<20;i++){
+      const d = easy[randInt(0,easy.length-1)];
+      const q = randInt(2,12);
+      ps.push({a:d*q, b:d, q});
+    }
+    for (let i=0;i<20;i++){
+      const d = mid[randInt(0,mid.length-1)];
+      const q = randInt(2,12);
+      ps.push({a:d*q, b:d, q});
+    }
+    for (let i=0;i<20;i++){
+      const d = randInt(2,12);
+      const q = randInt(2,12);
+      ps.push({a:d*q, b:d, q});
+    }
+    return ps;
+  };
+
+  const render = () => {
+    tasksEl.innerHTML = "";
+    scoreText.textContent = "Eredmény: – / 60";
+    locked = false;
+    checkBtn.disabled = false;
+
+    problems.forEach((p, idx) => {
+      const row = document.createElement("div");
+      row.className = "row";
+
+      const num = document.createElement("div");
+      num.className = "num";
+      num.textContent = String(idx + 1).padStart(2, "0") + ".";
+
+      const expr = document.createElement("div");
+      expr.className = "expr";
+      expr.innerHTML = `<span class="num">${p.a}</span> <span class="num">:</span> <span class="num">${p.b}</span> <span class="num">=</span>
+                        <span class="right" id="right-${idx}"></span>`;
+
+      const input = document.createElement("input");
+      input.className = "answer";
+      input.type = "text";
+      input.inputMode = "numeric";
+      input.placeholder = "Írd be";
+      input.dataset.index = idx;
+
+      row.appendChild(num);
+      row.appendChild(expr);
+      row.appendChild(input);
+      tasksEl.appendChild(row);
+    });
+  };
+
+  const lockAll = () => {
+    locked = true;
+    checkBtn.disabled = true;
+    [...document.querySelectorAll("input.answer")].forEach(i => i.disabled = true);
+  };
+
+  const check = () => {
+    if (locked) return;
+    const inputs = [...document.querySelectorAll("input.answer")];
+    let correct = 0;
+
+    inputs.forEach(inp => {
+      inp.classList.remove("ok","bad");
+      const idx = Number(inp.dataset.index);
+      const p = problems[idx];
+      const expected = p.q;
+      const got = Number(String(inp.value).trim());
+
+      const rightEl = document.getElementById(`right-${idx}`);
+      rightEl.textContent = "";
+
+      if (!Number.isFinite(got) || got !== expected){
+        inp.classList.add("bad");
+        rightEl.textContent = `Helyes: ${expected}`;
+      } else {
+        inp.classList.add("ok");
+        correct++;
+      }
+    });
+
+    scoreText.textContent = `Eredmény: ${correct} / 60`;
+    lockAll();
+  };
+
+  const newSet = () => { problems = generate(); render(); };
+
+  checkBtn.addEventListener("click", check);
+  newBtn.addEventListener("click", newSet);
+  newSet();
+})();
+</script>
+</body>
+</html>
