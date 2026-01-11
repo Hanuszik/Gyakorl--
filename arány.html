@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Arányosság – közvetlen arányosság (60 feladat)</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body { margin: 0; padding: 24px; background: #f6f7fb; }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    h1 { font-size: 22px; margin-bottom: 6px; }
+    .sub { color: #444; margin-bottom: 16px; }
+    .card { background: #fff; border-radius: 14px; padding: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.06); }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+    button { border: 0; border-radius: 10px; padding: 10px 14px; cursor: pointer; font-weight: 600; }
+    button.primary { background: #2563eb; color: #fff; }
+    button.secondary { background: #e5e7eb; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .pill { background: #eef2ff; padding: 8px 12px; border-radius: 999px; font-weight: 700; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    @media (min-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .row { display: grid; grid-template-columns: 44px 1fr 160px; gap: 10px; padding: 10px; background: #fafbff; border-radius: 10px; border: 1px solid #e5e7eb; }
+    .right { font-size: 12px; margin-top: 4px; color: #374151; }
+    input { width: 100%; padding: 8px; border-radius: 8px; border: 2px solid #e5e7eb; }
+    input:disabled { background: #f3f4f6; }
+    .ok { border-color: #22c55e !important; background: #f0fdf4 !important; }
+    .bad { border-color: #ef4444 !important; background: #fef2f2 !important; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Arányosság – közvetlen arányosság</h1>
+  <p class="sub">Kezdés → idő indul • Ellenőrzés → idő megáll, hibásnál helyes válasz</p>
+
+  <div class="card">
+    <div class="controls">
+      <button class="primary" id="startBtn">Kezdés</button>
+      <button class="primary" id="checkBtn" disabled>Ellenőrzés</button>
+      <button class="secondary" id="newBtn">Új feladatsor</button>
+      <span class="pill" id="timer">Idő: 00:00</span>
+      <strong id="score">Eredmény: – / 60</strong>
+    </div>
+
+    <div class="grid" id="tasks"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const items = ["alma", "körte", "ceruza", "radír", "matrica", "füzet"];
+  const tasksEl = document.getElementById("tasks");
+  const scoreEl = document.getElementById("score");
+  const startBtn = document.getElementById("startBtn");
+  const checkBtn = document.getElementById("checkBtn");
+  const newBtn = document.getElementById("newBtn");
+  const timerEl = document.getElementById("timer");
+
+  let problems = [];
+  let locked = false;
+
+  // timer
+  let t0 = null, intv = null;
+  const tick = () => {
+    const s = Math.floor((Date.now() - t0)/1000);
+    timerEl.textContent = `Idő: ${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+  };
+
+  const rand = (a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+  const pick = arr => arr[rand(0,arr.length-1)];
+
+  const genProblem = (level) => {
+    const item = pick(items);
+    const unit = level===1 ? rand(10,30) : level===2 ? rand(20,60) : rand(40,100);
+    const a = level===1 ? rand(2,5) : level===2 ? rand(3,8) : rand(4,12);
+    const b = level===1 ? rand(2,8) : level===2 ? rand(5,15) : rand(8,25);
+    const priceA = a*unit;
+    const type = Math.random()<0.5 ? "direct" : "unit";
+    return type==="direct"
+      ? {type,item,a,b,priceA,ans:b*unit}
+      : {type,item,a,priceA,ans:unit};
+  };
+
+  const generate = () => [
+    ...Array.from({length:20},()=>genProblem(1)),
+    ...Array.from({length:20},()=>genProblem(2)),
+    ...Array.from({length:20},()=>genProblem(3))
+  ];
+
+  const render = () => {
+    tasksEl.innerHTML = "";
+    scoreEl.textContent = "Eredmény: – / 60";
+    checkBtn.disabled = true;
+    startBtn.disabled = false;
+    locked = false;
+    problems.forEach((p,i)=>{
+      const row = document.createElement("div");
+      row.className="row";
+      row.innerHTML = `
+        <div>${String(i+1).padStart(2,"0")}.</div>
+        <div>
+          ${p.type==="direct"
+            ? `Ha ${p.a} ${p.item} ${p.priceA} Ft, akkor ${p.b} ${p.item} mennyi?`
+            : `Ha ${p.a} ${p.item} ${p.priceA} Ft, akkor 1 ${p.item} mennyibe kerül?`}
+          <div class="right" id="r${i}"></div>
+        </div>
+        <input type="text" data-i="${i}" disabled placeholder="Ft">
+      `;
+      tasksEl.appendChild(row);
+    });
+  };
+
+  startBtn.onclick = ()=>{
+    startBtn.disabled=true;
+    checkBtn.disabled=false;
+    t0=Date.now();
+    intv=setInterval(tick,500);
+    document.querySelectorAll("input").forEach(i=>i.disabled=false);
+  };
+
+  checkBtn.onclick = ()=>{
+    clearInterval(intv);
+    let ok=0;
+    document.querySelectorAll("input").forEach(inp=>{
+      const i=inp.dataset.i;
+      const p=problems[i];
+      const v=Number(inp.value);
+      const r=document.getElementById("r"+i);
+      if(v===p.ans){ ok++; inp.classList.add("ok"); }
+      else{ inp.classList.add("bad"); r.textContent=`Helyes: ${p.ans} Ft`; }
+      inp.disabled=true;
+    });
+    scoreEl.textContent=`Eredmény: ${ok} / 60`;
+    checkBtn.disabled=true;
+  };
+
+  newBtn.onclick = ()=>{
+    clearInterval(intv);
+    timerEl.textContent="Idő: 00:00";
+    problems=generate();
+    render();
+  };
+
+  problems=generate();
+  render();
+})();
+</script>
+</body>
+</html>

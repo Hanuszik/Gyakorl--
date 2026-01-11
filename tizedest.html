@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>5. osztály – Tizedes törtek műveletek (60 feladat)</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body { margin: 0; padding: 24px; background: #f6f7fb; }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 22px; }
+    .sub { margin: 0 0 18px; color: #444; }
+    .card { background: #fff; border-radius: 14px; padding: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.06); }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 14px 0 18px; }
+    button {
+      border: 0; border-radius: 10px; padding: 10px 14px;
+      cursor: pointer; font-weight: 600;
+      box-shadow: 0 6px 18px rgba(0,0,0,.08);
+    }
+    button.primary { background: #2563eb; color: #fff; }
+    button.secondary { background: #e5e7eb; color: #111827; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .score { font-weight: 700; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    @media (min-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .row {
+      display: grid;
+      grid-template-columns: 44px 1fr 160px;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid #eef2f7;
+      background: #fafbff;
+    }
+    .num { font-variant-numeric: tabular-nums; color: #111827; }
+    .expr { font-size: 16px; }
+    .right {
+      display: block;
+      font-size: 12px;
+      color: #374151;
+      margin-top: 4px;
+    }
+    input.answer {
+      width: 100%;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 2px solid #e5e7eb;
+      outline: none;
+      font-size: 16px;
+      font-variant-numeric: tabular-nums;
+      background: #fff;
+    }
+    input.answer:focus { border-color: #93c5fd; }
+    input.answer:disabled { background: #f3f4f6; color: #111827; }
+    .ok { border-color: #22c55e !important; background: #f0fdf4 !important; }
+    .bad { border-color: #ef4444 !important; background: #fef2f2 !important; }
+    .hint { font-size: 12px; color: #6b7280; margin-top: 10px; line-height: 1.4; }
+    .small { font-size: 12px; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>5. osztály – Tizedes törtek műveletek (60 feladat)</h1>
+    <p class="sub">
+      Írd be az eredményt (tizedesvesszővel vagy tizedesponttal). A végén kattints: <b>Ellenőrzés</b>.
+      <br><span class="small">Ellenőrzés után a válaszok zárolódnak, a hibásaknál megjelenik a helyes eredmény.</span>
+    </p>
+
+    <div class="card" id="app">
+      <div class="controls">
+        <button class="primary" id="checkBtn">Ellenőrzés</button>
+        <button class="secondary" id="newBtn">Új feladatsor</button>
+        <span class="score" id="scoreText">Eredmény: – / 60</span>
+      </div>
+
+      <div class="grid" id="tasks"></div>
+
+      <div class="hint">
+        <b>Tipp:</b> Írhatsz <b>10,1</b> vagy <b>10.1</b> – mindkettő jó.
+        A program tizedezredig elfogad (0,0005 eltérésig).
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const tasksEl = document.getElementById("tasks");
+  const scoreText = document.getElementById("scoreText");
+  const checkBtn = document.getElementById("checkBtn");
+  const newBtn = document.getElementById("newBtn");
+
+  let locked = false;
+  let problems = [];
+
+  const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+  const fmtHU = (n) => {
+    const x = Math.round((n + 1e-10) * 10000) / 10000;
+    return x.toString().replace(".", ",");
+  };
+
+  const parseUser = (val) => {
+    const cleaned = String(val ?? "").trim().replace(/\s+/g, "").replace(",", ".");
+    if (cleaned === "") return NaN;
+    const num = Number(cleaned);
+    return Number.isFinite(num) ? num : NaN;
+  };
+
+  const nearlyEqual = (a, b) => Math.abs(a - b) <= 0.0005;
+
+  const calc = (p) => {
+    if (p.op === "+") return p.a + p.b;
+    if (p.op === "-") return p.a - p.b;
+    if (p.op === "*") return p.a * p.b;
+    throw new Error("Ismeretlen művelet");
+  };
+
+  const makeDecimal = (intPartMin, intPartMax, decimals) => {
+    const intPart = randInt(intPartMin, intPartMax);
+    if (decimals === 1) return intPart + randInt(0, 9) / 10;
+    return intPart + randInt(0, 99) / 100;
+  };
+
+  const generateProblems = () => {
+    const ps = [];
+
+    for (let i = 0; i < 12; i++) ps.push({ a: makeDecimal(0, 9, 1),  b: makeDecimal(0, 9, 1),  op: "+" });
+
+    for (let i = 0; i < 12; i++) {
+      let a = makeDecimal(1, 12, 1), b = makeDecimal(0, 11, 1);
+      if (b > a) [a, b] = [b, a];
+      ps.push({ a, b, op: "-" });
+    }
+
+    for (let i = 0; i < 10; i++) ps.push({ a: makeDecimal(0, 12, 2), b: makeDecimal(0, 12, 2), op: "+" });
+
+    for (let i = 0; i < 10; i++) {
+      let a = makeDecimal(1, 15, 2), b = makeDecimal(0, 14, 2);
+      if (b > a) [a, b] = [b, a];
+      ps.push({ a, b, op: "-" });
+    }
+
+    for (let i = 0; i < 8; i++) {
+      const mul = Math.random() < 0.5 ? 10 : 100;
+      const a = (mul === 10) ? makeDecimal(0, 9, 1) : makeDecimal(0, 9, 2);
+      ps.push({ a, b: mul, op: "*" });
+    }
+
+    for (let i = 0; i < 4; i++) ps.push({ a: makeDecimal(0, 9, 1), b: randInt(2, 9), op: "*" });
+
+    for (let i = 0; i < 4; i++) {
+      const op = Math.random() < 0.5 ? "+" : "-";
+      if (op === "+") ps.push({ a: makeDecimal(0, 20, 2), b: makeDecimal(0, 20, 2), op });
+      else {
+        let a = makeDecimal(1, 20, 2), b = makeDecimal(0, 19, 2);
+        if (b > a) [a, b] = [b, a];
+        ps.push({ a, b, op });
+      }
+    }
+
+    return ps;
+  };
+
+  const render = () => {
+    tasksEl.innerHTML = "";
+    scoreText.textContent = "Eredmény: – / 60";
+    locked = false;
+    checkBtn.disabled = false;
+
+    problems.forEach((p, idx) => {
+      const row = document.createElement("div");
+      row.className = "row";
+
+      const num = document.createElement("div");
+      num.className = "num";
+      num.textContent = String(idx + 1).padStart(2, "0") + ".";
+
+      const expr = document.createElement("div");
+      expr.className = "expr";
+      expr.innerHTML = `
+        <span class="num">${fmtHU(p.a)}</span>
+        <span class="num"> ${p.op} </span>
+        <span class="num">${fmtHU(p.b)}</span>
+        <span class="num"> = </span>
+        <span class="right" id="right-${idx}"></span>
+      `;
+
+      const input = document.createElement("input");
+      input.className = "answer";
+      input.type = "text";
+      input.inputMode = "decimal";
+      input.placeholder = "Írd be";
+      input.setAttribute("data-index", idx);
+
+      row.appendChild(num);
+      row.appendChild(expr);
+      row.appendChild(input);
+      tasksEl.appendChild(row);
+    });
+  };
+
+  const lockAll = () => {
+    locked = true;
+    checkBtn.disabled = true;
+    [...document.querySelectorAll("input.answer")].forEach(inp => inp.disabled = true);
+  };
+
+  const check = () => {
+    if (locked) return;
+
+    const inputs = [...document.querySelectorAll("input.answer")];
+    let correct = 0;
+
+    inputs.forEach((inp) => {
+      inp.classList.remove("ok", "bad");
+      const idx = Number(inp.getAttribute("data-index"));
+      const p = problems[idx];
+      const expected = calc(p);
+      const got = parseUser(inp.value);
+
+      const rightEl = document.getElementById(`right-${idx}`);
+      rightEl.textContent = ""; // alapból ne mutasson semmit
+
+      if (!Number.isFinite(got)) {
+        inp.classList.add("bad");
+        rightEl.textContent = `Helyes: ${fmtHU(expected)}`;
+        return;
+      }
+
+      if (nearlyEqual(got, expected)) {
+        correct++;
+        inp.classList.add("ok");
+      } else {
+        inp.classList.add("bad");
+        rightEl.textContent = `Helyes: ${fmtHU(expected)}`;
+      }
+    });
+
+    scoreText.textContent = `Eredmény: ${correct} / 60`;
+    lockAll();
+  };
+
+  const newSet = () => {
+    problems = generateProblems();
+    render();
+  };
+
+  checkBtn.addEventListener("click", check);
+  newBtn.addEventListener("click", newSet);
+
+  newSet();
+})();
+</script>
+</body>
+</html>

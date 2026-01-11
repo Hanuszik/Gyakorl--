@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Százalékszámítás (60 feladat) + időmérő</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body { margin: 0; padding: 24px; background: #f6f7fb; }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 22px; }
+    .sub { margin: 0 0 18px; color: #444; }
+    .card { background: #fff; border-radius: 14px; padding: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.06); }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 14px 0 18px; }
+    button { border: 0; border-radius: 10px; padding: 10px 14px; cursor: pointer; font-weight: 600; box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+    button.primary { background: #2563eb; color: #fff; }
+    button.secondary { background: #e5e7eb; color: #111827; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .pill { padding: 8px 12px; border-radius: 999px; background: #eef2ff; font-weight: 700; }
+    .score { font-weight: 700; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    @media (min-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .row { display: grid; grid-template-columns: 44px 1fr 160px; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; border: 1px solid #eef2f7; background: #fafbff; }
+    .num { font-variant-numeric: tabular-nums; color: #111827; }
+    .expr { font-size: 16px; }
+    .right { display:block; font-size: 12px; color: #374151; margin-top: 4px; }
+    input.answer { width: 100%; padding: 9px 10px; border-radius: 10px; border: 2px solid #e5e7eb; outline: none; font-size: 16px; font-variant-numeric: tabular-nums; background: #fff; }
+    input.answer:focus { border-color: #93c5fd; }
+    input.answer:disabled { background: #f3f4f6; color: #111827; }
+    .ok { border-color: #22c55e !important; background: #f0fdf4 !important; }
+    .bad { border-color: #ef4444 !important; background: #fef2f2 !important; }
+    .hint { font-size: 12px; color: #6b7280; margin-top: 10px; line-height: 1.4; }
+    .small { font-size: 12px; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Százalékszámítás – 60 feladat</h1>
+    <p class="sub">
+      Forma: <b>„Mennyi 120 25%-a?”</b><br/>
+      <span class="small">Kezdésre indul az idő, Ellenőrzésre megáll. Ellenőrzés után a válaszok zárolódnak.</span>
+    </p>
+
+    <div class="card">
+      <div class="controls">
+        <button class="primary" id="startBtn">Kezdés</button>
+        <button class="primary" id="checkBtn" disabled>Ellenőrzés</button>
+        <button class="secondary" id="newBtn">Új feladatsor</button>
+        <span class="pill" id="timer">Idő: 00:00</span>
+        <span class="score" id="scoreText">Eredmény: – / 60</span>
+      </div>
+
+      <div class="grid" id="tasks"></div>
+
+      <div class="hint">
+        <b>Tipp:</b> 10% = tizede, 50% = fele, 25% = negyede. Írhatsz tizedesvesszőt vagy tizedespontot is.
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const tasksEl = document.getElementById("tasks");
+  const scoreText = document.getElementById("scoreText");
+  const startBtn = document.getElementById("startBtn");
+  const checkBtn = document.getElementById("checkBtn");
+  const newBtn = document.getElementById("newBtn");
+  const timerEl = document.getElementById("timer");
+
+  let locked = false;
+  let problems = [];
+
+  // ---- timer ----
+  let timerRunning = false;
+  let startTs = null;
+  let elapsedMs = 0;
+  let tickHandle = null;
+
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const renderTime = (ms) => {
+    const totalSec = Math.floor(ms / 1000);
+    const mm = Math.floor(totalSec / 60);
+    const ss = totalSec % 60;
+    timerEl.textContent = `Idő: ${pad2(mm)}:${pad2(ss)}`;
+  };
+
+  const startTimer = () => {
+    if (timerRunning) return;
+    timerRunning = true;
+    startTs = Date.now() - elapsedMs;
+    tickHandle = setInterval(() => {
+      elapsedMs = Date.now() - startTs;
+      renderTime(elapsedMs);
+    }, 250);
+  };
+
+  const stopTimer = () => {
+    if (!timerRunning) return;
+    timerRunning = false;
+    clearInterval(tickHandle);
+    tickHandle = null;
+    elapsedMs = Date.now() - startTs;
+    renderTime(elapsedMs);
+  };
+
+  const resetTimer = () => {
+    stopTimer();
+    elapsedMs = 0;
+    startTs = null;
+    renderTime(0);
+  };
+
+  // ---- helpers ----
+  const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+  const parseUser = (val) => {
+    const s = String(val ?? "").trim().replace(/\s+/g, "").replace(",", ".");
+    if (s === "") return NaN;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : NaN;
+  };
+
+  const nearlyEqual = (a,b) => Math.abs(a-b) <= 0.0005;
+
+  const fmtHU = (n) => {
+    const x = Math.round((n + 1e-10) * 10000) / 10000;
+    return x.toString().replace(".", ",");
+  };
+
+  const pickBase = () => {
+    // gyakran egész eredményhez jó számok
+    const choices = [20, 40, 50, 80, 100, 120, 150, 200, 240, 300, 400, 500];
+    return choices[randInt(0, choices.length-1)];
+  };
+
+  const makeSet = (percentList, count) => {
+    const ps = [];
+    for (let i=0;i<count;i++){
+      const p = percentList[randInt(0, percentList.length-1)];
+      const base = pickBase();
+      const ans = base * (p/100);
+      ps.push({p, base, ans});
+    }
+    return ps;
+  };
+
+  // 60 db lépcső:
+  // 1–20: 10,20,25,50
+  // 21–40: 5,15,30,40
+  // 41–60: 12,18,35,75
+  const generate = () => ([
+    ...makeSet([10,20,25,50], 20),
+    ...makeSet([5,15,30,40], 20),
+    ...makeSet([12,18,35,75], 20),
+  ]);
+
+  const render = () => {
+    tasksEl.innerHTML = "";
+    scoreText.textContent = "Eredmény: – / 60";
+    locked = false;
+    checkBtn.disabled = true;      // csak Kezdés után
+    startBtn.disabled = false;
+
+    problems.forEach((p, idx) => {
+      const row = document.createElement("div");
+      row.className = "row";
+
+      const num = document.createElement("div");
+      num.className = "num";
+      num.textContent = String(idx + 1).padStart(2, "0") + ".";
+
+      const expr = document.createElement("div");
+      expr.className = "expr";
+      expr.innerHTML = `Mennyi <span class="num">${p.base}</span> <span class="num">${p.p}%</span>-a?
+                        <span class="right" id="right-${idx}"></span>`;
+
+      const input = document.createElement("input");
+      input.className = "answer";
+      input.type = "text";
+      input.inputMode = "decimal";
+      input.placeholder = "Írd be";
+      input.dataset.index = idx;
+      input.disabled = true; // Kezdésig tiltva
+
+      row.appendChild(num);
+      row.appendChild(expr);
+      row.appendChild(input);
+      tasksEl.appendChild(row);
+    });
+  };
+
+  const enableInputs = () => {
+    [...document.querySelectorAll("input.answer")].forEach(i => i.disabled = false);
+  };
+
+  const lockAll = () => {
+    locked = true;
+    checkBtn.disabled = true;
+    [...document.querySelectorAll("input.answer")].forEach(i => i.disabled = true);
+  };
+
+  const start = () => {
+    if (locked) return;
+    startBtn.disabled = true;
+    checkBtn.disabled = false;
+    enableInputs();
+    startTimer();
+    // fókusz az elsőre
+    const first = document.querySelector("input.answer");
+    if (first) first.focus();
+  };
+
+  const check = () => {
+    if (locked) return;
+
+    stopTimer();
+
+    const inputs = [...document.querySelectorAll("input.answer")];
+    let correct = 0;
+
+    inputs.forEach(inp => {
+      inp.classList.remove("ok","bad");
+      const idx = Number(inp.dataset.index);
+      const p = problems[idx];
+      const got = parseUser(inp.value);
+
+      const rightEl = document.getElementById(`right-${idx}`);
+      rightEl.textContent = "";
+
+      if (!Number.isFinite(got) || !nearlyEqual(got, p.ans)){
+        inp.classList.add("bad");
+        rightEl.textContent = `Helyes: ${fmtHU(p.ans)}`;
+      } else {
+        inp.classList.add("ok");
+        correct++;
+      }
+    });
+
+    scoreText.textContent = `Eredmény: ${correct} / 60`;
+    lockAll();
+  };
+
+  const newSet = () => {
+    problems = generate();
+    resetTimer();
+    render();
+  };
+
+  startBtn.addEventListener("click", start);
+  checkBtn.addEventListener("click", check);
+  newBtn.addEventListener("click", newSet);
+
+  // induláskor generál
+  newSet();
+})();
+</script>
+</body>
+</html>
