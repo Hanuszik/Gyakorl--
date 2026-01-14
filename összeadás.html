@@ -1,0 +1,143 @@
+<!-- FILE: plusz.html -->
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tizedes törtek – Összeadás (5 feladat)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; line-height: 1.4; }
+    h1 { font-size: 20px; margin: 0 0 12px; }
+    .hint { color: #444; margin: 0 0 16px; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; max-width: 760px; }
+    .row { display: grid; grid-template-columns: 1fr 200px 260px; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; }
+    .row:last-child { border-bottom: none; }
+    .expr { font-size: 18px; }
+    input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 10px; font-size: 16px; }
+    .result { font-size: 14px; color: #333; }
+    .ok { color: #0a7; font-weight: 600; }
+    .bad { color: #c00; font-weight: 600; }
+    .actions { display: flex; gap: 10px; margin-top: 14px; }
+    button { padding: 10px 14px; border: 0; border-radius: 10px; cursor: pointer; font-size: 15px; }
+    button.primary { background: #1a73e8; color: white; }
+    button.secondary { background: #f2f2f2; }
+    .score { margin-top: 12px; font-weight: 600; }
+    .small { font-size: 12px; color: #555; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Összeadás – tizedes törtek (ezredesig)</h1>
+  <p class="hint">Írd be a megoldást tizedesvesszővel (pl. <b>12,3</b>). Ponttal is elfogadjuk.</p>
+
+  <div class="card" id="quiz"></div>
+
+  <div class="actions">
+    <button class="primary" id="checkBtn">Ellenőrzés</button>
+    <button class="secondary" id="newBtn">Új feladatsor</button>
+  </div>
+
+  <div class="score" id="score"></div>
+  <div class="small">A feladatokban a tizedesjegyek száma váltakozik (1–3 tizedes).</div>
+
+<script>
+  function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+  function round3(n) { return Math.round((n + Number.EPSILON) * 1000) / 1000; }
+
+  function formatDec(n) {
+    const r = round3(n);
+    let s = r.toFixed(3).replace(/\.?0+$/, "");
+    return s.replace(".", ",");
+  }
+
+  function parseUserNumber(str) {
+    if (!str) return NaN;
+    return Number(str.trim().replace(",", "."));
+  }
+
+  function approxEqual(a, b) { return Math.abs(a - b) < 0.0005; }
+
+  // Készít egy 0..99 közti számot adott tizedesjegyszámmal (0 nélkül, hogy tényleg legyen tizedes)
+  function makeNumberWithDecimals(decimals) {
+    const intPart = randInt(0, 99);
+    const pow = Math.pow(10, decimals);
+    const frac = randInt(1, pow - 1); // 1..(10^d-1)
+    return intPart + frac / pow;
+  }
+
+  // Összeadás: kevert tizedesjegyek (1–3), a két operandus eltérő legyen
+  function makeAddTask() {
+    let d1 = randInt(1, 3);
+    let d2 = randInt(1, 3);
+    while (d2 === d1) d2 = randInt(1, 3);
+
+    const a = makeNumberWithDecimals(d1);
+    const b = makeNumberWithDecimals(d2);
+    const ans = round3(a + b);
+    return { a, b, ans };
+  }
+
+  function generateSet() {
+    const tasks = [];
+    for (let i = 0; i < 5; i++) tasks.push(makeAddTask());
+    return tasks;
+  }
+
+  let tasks = [];
+
+  function render() {
+    const quiz = document.getElementById("quiz");
+    quiz.innerHTML = "";
+    tasks.forEach((t, idx) => {
+      const row = document.createElement("div");
+      row.className = "row";
+
+      const expr = document.createElement("div");
+      expr.className = "expr";
+      expr.textContent = `${formatDec(t.a)} + ${formatDec(t.b)} =`;
+
+      const inpWrap = document.createElement("div");
+      const input = document.createElement("input");
+      input.type = "text";
+      input.inputMode = "decimal";
+      input.placeholder = "válasz";
+      input.id = `ans_${idx}`;
+      inpWrap.appendChild(input);
+
+      const res = document.createElement("div");
+      res.className = "result";
+      res.id = `res_${idx}`;
+      res.textContent = " ";
+
+      row.appendChild(expr);
+      row.appendChild(inpWrap);
+      row.appendChild(res);
+      quiz.appendChild(row);
+    });
+    document.getElementById("score").textContent = "";
+  }
+
+  function checkAnswers() {
+    let correct = 0;
+    tasks.forEach((t, idx) => {
+      const userVal = parseUserNumber(document.getElementById(`ans_${idx}`).value);
+      const res = document.getElementById(`res_${idx}`);
+      const ok = approxEqual(userVal, t.ans);
+      if (ok) {
+        correct++;
+        res.innerHTML = `<span class="ok">Helyes ✓</span> (eredmény: ${formatDec(t.ans)})`;
+      } else {
+        res.innerHTML = `<span class="bad">Nem jó ✗</span> (helyes: ${formatDec(t.ans)})`;
+      }
+    });
+    document.getElementById("score").textContent = `Eredmény: ${correct} / 5 helyes.`;
+  }
+
+  function newQuiz() { tasks = generateSet(); render(); }
+
+  document.getElementById("checkBtn").addEventListener("click", checkAnswers);
+  document.getElementById("newBtn").addEventListener("click", newQuiz);
+  newQuiz();
+</script>
+</body>
+</html>
