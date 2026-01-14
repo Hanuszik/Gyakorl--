@@ -1,0 +1,298 @@
+<!-- FILE: tizedes_helyiertek_feleletvalasztos.html -->
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>5. osztály – Tizedes törtek (helyiérték) – Feleletválasztós</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#f5f6f8; margin:0; padding:20px; }
+    .container { max-width: 980px; margin: 0 auto; background:#fff; padding:24px; border-radius:16px; box-shadow:0 8px 25px rgba(0,0,0,0.08); }
+    h1 { margin:0 0 8px; font-size:22px; }
+    .hint { margin:0 0 18px; color:#555; }
+    .toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin: 14px 0 18px; }
+    button { padding:10px 14px; border:0; border-radius:12px; cursor:pointer; font-size:15px; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .primary { background:#1a73e8; color:#fff; }
+    .secondary { background:#f2f2f2; }
+    .pill { display:inline-block; padding:6px 10px; border-radius:999px; background:#eef3ff; color:#1a73e8; font-weight:700; font-size:13px; }
+    .q { border-top:1px dashed #ddd; padding:14px 0; }
+    .q:first-of-type { border-top:none; padding-top:0; }
+    .qtitle { font-size:16px; font-weight:700; margin-bottom:10px; }
+    .opts { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    label.opt {
+      border:1px solid #ddd; border-radius:12px; padding:10px 12px;
+      display:flex; gap:10px; align-items:flex-start; cursor:pointer; background:#fff;
+    }
+    label.opt.disabled { opacity: .85; cursor: default; }
+    input[type="radio"] { margin-top:3px; }
+    .fb { margin-top:10px; font-size:14px; }
+    .ok { color:#0a7; font-weight:700; }
+    .bad { color:#c00; font-weight:700; }
+    .summary { margin-top:16px; font-size:18px; font-weight:800; }
+    .small { font-size:12px; color:#666; margin-top:6px; }
+    @media (max-width: 720px) { .opts { grid-template-columns: 1fr; } }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Tizedes törtek – helyiérték (5. osztály) • feleletválasztós</h1>
+    <p class="hint">
+      Egész rész: <b>max. 50</b>. Tizedes rész: legfeljebb <b>tízezred</b> (4 tizedesjegy).
+      Kétféle feladat van: <span class="pill">Szám → szöveg</span> és <span class="pill">Szöveg → szám</span>.
+    </p>
+
+    <div class="toolbar">
+      <button class="primary" id="checkBtn">Ellenőrzés</button>
+      <button class="secondary" id="newBtn">Új feladatsor</button>
+      <span class="pill" id="mixInfo">10 + 10 feladat</span>
+    </div>
+
+    <div id="quiz"></div>
+
+    <div class="summary" id="summary"></div>
+    <div class="small">Megjegyzés: tizedesvesszőt használunk, pl. 4,0345.</div>
+  </div>
+
+<script>
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+function formatNumber(intPart, fracDigits) { return `${intPart},${fracDigits}`; }
+
+const denomMap = { 1:"tized", 2:"század", 3:"ezred", 4:"tízezred" };
+
+function numberToText(intPart, fracDigits) {
+  const d = fracDigits.length;
+  const denom = denomMap[d];
+  const numer = String(parseInt(fracDigits, 10));
+  return `${intPart} egész ${numer} ${denom}`;
+}
+
+const ones = {
+  "nulla":0, "egy":1, "kettő":2, "ketto":2, "három":3, "harom":3, "négy":4, "negy":4,
+  "öt":5, "ot":5, "hat":6, "hét":7, "het":7, "nyolc":8, "kilenc":9
+};
+const tens = { "tíz":10, "tiz":10, "húsz":20, "husz":20, "harminc":30, "negyven":40, "ötven":50, "otven":50 };
+
+function huNumber0to50ToText(n) {
+  if (n === 0) return "nulla";
+  if (n <= 9) return ["nulla","egy","kettő","három","négy","öt","hat","hét","nyolc","kilenc"][n];
+  if (n === 10) return "tíz";
+  if (n === 20) return "húsz";
+  if (n === 30) return "harminc";
+  if (n === 40) return "negyven";
+  if (n === 50) return "ötven";
+  if (n > 10 && n < 20) return "tizen" + ["","egy","kettő","három","négy","öt","hat","hét","nyolc","kilenc"][n-10];
+  if (n > 20 && n < 30) return "huszon" + ["","egy","kettő","három","négy","öt","hat","hét","nyolc","kilenc"][n-20];
+  if (n > 30 && n < 40) return "harminc" + ["","egy","kettő","három","négy","öt","hat","hét","nyolc","kilenc"][n-30];
+  if (n > 40 && n < 50) return "negyven" + ["","egy","kettő","három","négy","öt","hat","hét","nyolc","kilenc"][n-40];
+  return String(n);
+}
+
+function parseHu0to50(text) {
+  const t = text.toLowerCase()
+    .replaceAll("á","a").replaceAll("é","e").replaceAll("í","i").replaceAll("ó","o")
+    .replaceAll("ö","o").replaceAll("ő","o").replaceAll("ú","u").replaceAll("ü","u").replaceAll("ű","u")
+    .trim();
+
+  if (t in ones) return ones[t];
+  if (t in tens) return tens[t];
+
+  if (t.startsWith("tizen")) { const rest = t.slice(5); if (rest in ones) return 10 + ones[rest]; }
+  if (t.startsWith("huszon")) { const rest = t.slice(6); if (rest in ones) return 20 + ones[rest]; }
+  if (t.startsWith("harminc")) { const rest = t.slice(7); if (rest in ones) return 30 + ones[rest]; }
+  if (t.startsWith("negyven")) { const rest = t.slice(7); if (rest in ones) return 40 + ones[rest]; }
+
+  const asNum = Number(t);
+  if (Number.isFinite(asNum) && asNum >= 0 && asNum <= 50) return asNum;
+  return NaN;
+}
+
+function makeTextToNumberItem(intPart, fracDigits) {
+  const denom = denomMap[fracDigits.length];
+  const numer = parseInt(fracDigits, 10);
+  const intTxt = huNumber0to50ToText(intPart);
+  return `${intTxt} egész ${numer} ${denom}`;
+}
+
+function makeRandomDecimal() {
+  const intPart = randInt(0, 50);
+  const digits = randInt(1, 4);
+  const max = Math.pow(10, digits) - 1;
+  const frac = randInt(1, max);
+  const fracDigits = String(frac).padStart(digits, "0");
+  return { intPart, fracDigits, digits };
+}
+
+function uniqueOptions(correct, makeWrongFn, count=4) {
+  const opts = new Set([correct]);
+  let guard = 0;
+  while (opts.size < count && guard < 200) { opts.add(makeWrongFn()); guard++; }
+  return shuffle(Array.from(opts));
+}
+
+function generateQuiz() {
+  const questions = [];
+
+  for (let i = 0; i < 10; i++) {
+    const { intPart, fracDigits, digits } = makeRandomDecimal();
+    const numberStr = formatNumber(intPart, fracDigits);
+    const correct = numberToText(intPart, fracDigits);
+
+    const options = uniqueOptions(correct, () => {
+      const mistakeType = randInt(1, 3);
+      let ip = intPart, fd = fracDigits, dg = digits;
+
+      if (mistakeType === 1) {
+        dg = randInt(1,4);
+        const numer = parseInt(fracDigits, 10);
+        fd = String(numer).padStart(dg, "0").slice(0, dg);
+      } else if (mistakeType === 2) {
+        const max = Math.pow(10, digits) - 1;
+        const numer = randInt(1, max);
+        fd = String(numer).padStart(digits, "0");
+      } else {
+        ip = randInt(0, 50);
+      }
+      return numberToText(ip, fd);
+    });
+
+    questions.push({
+      prompt: `Írd át szövegre: <b>${numberStr}</b>`,
+      correct,
+      options
+    });
+  }
+
+  for (let i = 0; i < 10; i++) {
+    const { intPart, fracDigits } = makeRandomDecimal();
+    const text = makeTextToNumberItem(intPart, fracDigits);
+    const correct = formatNumber(intPart, fracDigits);
+
+    const options = uniqueOptions(correct, () => {
+      const mistakeType = randInt(1, 3);
+      let ip = intPart;
+      let digits = fracDigits.length;
+      let denom = denomMap[digits];
+      let num = parseInt(fracDigits, 10);
+
+      if (mistakeType === 1) {
+        const d2 = randInt(1,4);
+        denom = denomMap[d2];
+        digits = d2;
+      } else if (mistakeType === 2) {
+        const max = Math.pow(10, digits) - 1;
+        num = randInt(1, max);
+      } else {
+        ip = randInt(0, 50);
+      }
+
+      const frac = String(num).padStart(digits, "0");
+      return formatNumber(ip, frac);
+    });
+
+    questions.push({
+      prompt: `Írd át számmal: <b>${text}</b>`,
+      correct,
+      options
+    });
+  }
+
+  return shuffle(questions);
+}
+
+/* ===== Render + Locking ===== */
+let quizData = [];
+let locked = false;
+
+function renderQuiz() {
+  locked = false;
+  document.getElementById("checkBtn").disabled = false;
+
+  const root = document.getElementById("quiz");
+  root.innerHTML = "";
+  document.getElementById("summary").textContent = "";
+
+  quizData.forEach((q, idx) => {
+    const qDiv = document.createElement("div");
+    qDiv.className = "q";
+
+    const title = document.createElement("div");
+    title.className = "qtitle";
+    title.innerHTML = `${idx + 1}. ${q.prompt}`;
+
+    const opts = document.createElement("div");
+    opts.className = "opts";
+
+    q.options.forEach((opt, j) => {
+      const id = `q${idx}_o${j}`;
+      const lab = document.createElement("label");
+      lab.className = "opt";
+      lab.setAttribute("for", id);
+      lab.innerHTML = `
+        <input type="radio" name="q${idx}" id="${id}" value="${opt}">
+        <div>${opt}</div>
+      `;
+      opts.appendChild(lab);
+    });
+
+    const fb = document.createElement("div");
+    fb.className = "fb";
+    fb.id = `fb_${idx}`;
+    fb.textContent = " ";
+
+    qDiv.appendChild(title);
+    qDiv.appendChild(opts);
+    qDiv.appendChild(fb);
+    root.appendChild(qDiv);
+  });
+}
+
+function lockAnswers() {
+  locked = true;
+  document.querySelectorAll('input[type="radio"]').forEach(r => r.disabled = true);
+  document.querySelectorAll('label.opt').forEach(l => l.classList.add("disabled"));
+  document.getElementById("checkBtn").disabled = true;
+}
+
+function checkQuiz() {
+  if (locked) return;
+
+  let correctCount = 0;
+
+  quizData.forEach((q, idx) => {
+    const chosen = document.querySelector(`input[name="q${idx}"]:checked`);
+    const fb = document.getElementById(`fb_${idx}`);
+
+    if (!chosen) {
+      fb.innerHTML = `<span class="bad">Nincs válasz.</span> (Helyes: <b>${q.correct}</b>)`;
+      return;
+    }
+
+    if (chosen.value === q.correct) {
+      correctCount++;
+      fb.innerHTML = `<span class="ok">Helyes ✓</span>`;
+    } else {
+      fb.innerHTML = `<span class="bad">Nem jó ✗</span> (Helyes: <b>${q.correct}</b>)`;
+    }
+  });
+
+  document.getElementById("summary").textContent = `Eredmény: ${correctCount} / ${quizData.length} helyes.`;
+
+  // Ellenőrzés után lezárjuk a válaszokat
+  lockAnswers();
+}
+
+function newQuiz() {
+  quizData = generateQuiz();
+  renderQuiz();
+}
+
+document.getElementById("checkBtn").addEventListener("click", checkQuiz);
+document.getElementById("newBtn").addEventListener("click", newQuiz);
+
+newQuiz();
+</script>
+</body>
+</html>
