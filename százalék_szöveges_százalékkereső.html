@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Százalékváltozás – 20 feladat (időmérő + ellenőrzés)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#f5f6f8; margin:0; padding:20px; }
+    .container { max-width: 920px; margin: 0 auto; background:#fff; padding:24px; border-radius:16px; box-shadow:0 8px 25px rgba(0,0,0,0.08); }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    h1 { margin:0; font-size:22px; }
+    .timer { font-size:18px; font-weight:700; color:#1a73e8; }
+    .hint { color:#555; margin: 10px 0 18px; }
+    .task { padding:12px 0; border-bottom:1px dashed #ddd; display:grid; grid-template-columns: 1fr 160px 260px; gap:10px; align-items:center; }
+    .task:last-child { border-bottom:none; }
+    input { padding:10px; border-radius:10px; border:1px solid #ccc; font-size:16px; width:100%; }
+    .result { font-size:14px; }
+    .ok { color:#0a7; font-weight:700; }
+    .bad { color:#c00; font-weight:700; }
+    .actions { margin-top: 18px; display:flex; gap:12px; flex-wrap:wrap; }
+    button { padding:12px 18px; border-radius:12px; border:none; cursor:pointer; font-size:15px; }
+    .start { background:#4caf50; color:#fff; }
+    .check { background:#1a73e8; color:#fff; }
+    .new { background:#f2f2f2; }
+    .score { margin-top:14px; font-size:18px; font-weight:700; }
+    .small { margin-top:6px; font-size:12px; color:#666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top">
+      <h1>Százalékváltozás – 20 feladat</h1>
+      <div class="timer" id="timer">Idő: 00:00</div>
+    </div>
+
+    <div class="hint">
+      Számold ki, hány %-kal változott az ár! Írd be a választ <b>százalékban</b> (pl. <b>20</b> vagy <b>-15</b>).
+      <div class="small">Pozitív = emelkedés, negatív = csökkenés. Egész %-ot kérünk.</div>
+    </div>
+
+    <div id="tasks"></div>
+
+    <div class="actions">
+      <button class="start" onclick="startQuiz()">Kezdés</button>
+      <button class="check" onclick="checkAnswers()">Ellenőrzés</button>
+      <button class="new" onclick="startQuiz()">Új feladatsor</button>
+    </div>
+
+    <div class="score" id="score"></div>
+  </div>
+
+<script>
+  let tasks = [];
+  let timerInterval = null;
+  let seconds = 0;
+
+  function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+  function startTimer() {
+    clearInterval(timerInterval);
+    seconds = 0;
+    timerInterval = setInterval(() => {
+      seconds++;
+      const m = String(Math.floor(seconds / 60)).padStart(2, "0");
+      const s = String(seconds % 60).padStart(2, "0");
+      document.getElementById("timer").textContent = `Idő: ${m}:${s}`;
+    }, 1000);
+  }
+
+  // Százalékváltozás = (új - régi) / régi * 100
+  // Olyan adatokat generálunk, hogy egész százalék jöjjön ki:
+  // régi = 100 * k, változás% = p, új = régi * (100+p)/100
+  function generateTasks() {
+    tasks = [];
+    for (let i = 0; i < 20; i++) {
+      const k = randInt(5, 120);           // régi = 500..12000
+      const oldPrice = 100 * k;
+
+      // p: -50..+60, de 0-t kihagyjuk, és ne legyen negatív új ár
+      let p = randInt(-50, 60);
+      while (p === 0 || (100 + p) <= 0) p = randInt(-50, 60);
+
+      const newPrice = Math.round(oldPrice * (100 + p) / 100); // biztosan egész
+      tasks.push({
+        oldPrice,
+        newPrice,
+        answer: p
+      });
+    }
+  }
+
+  function startQuiz() {
+    generateTasks();
+    startTimer();
+
+    const container = document.getElementById("tasks");
+    container.innerHTML = "";
+
+    tasks.forEach((t, i) => {
+      const div = document.createElement("div");
+      div.className = "task";
+      div.innerHTML = `
+        <div>${i + 1}. ${t.oldPrice} Ft volt. ${t.newPrice} Ft lett. Hány %-kal változott?</div>
+        <input type="number" id="ans_${i}" placeholder="%">
+        <div class="result" id="res_${i}"></div>
+      `;
+      container.appendChild(div);
+    });
+
+    document.getElementById("score").textContent = "";
+  }
+
+  function checkAnswers() {
+    clearInterval(timerInterval);
+
+    let correct = 0;
+    tasks.forEach((t, i) => {
+      const user = Number(document.getElementById(`ans_${i}`).value);
+      const res = document.getElementById(`res_${i}`);
+
+      if (!Number.isFinite(user)) {
+        res.innerHTML = `<span class="bad">Hiányzik</span> (helyes: ${t.answer}%)`;
+        return;
+      }
+
+      if (user === t.answer) {
+        correct++;
+        res.innerHTML = `<span class="ok">Helyes ✓</span> (${t.answer}%)`;
+      } else {
+        res.innerHTML = `<span class="bad">Nem jó ✗</span> (helyes: ${t.answer}%)`;
+      }
+    });
+
+    const timeStr = document.getElementById("timer").textContent.replace("Idő: ", "");
+    document.getElementById("score").textContent = `Eredmény: ${correct} / 20 helyes • Idő: ${timeStr}`;
+  }
+
+  // indulás
+  startQuiz();
+</script>
+</body>
+</html>

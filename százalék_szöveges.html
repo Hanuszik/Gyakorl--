@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <title>Százalékszámítás – Szöveges feladatok</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: #f5f6f8;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: #fff;
+      padding: 24px;
+      border-radius: 16px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    }
+
+    h1 { margin-top: 0; }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .timer {
+      font-size: 18px;
+      font-weight: bold;
+      color: #1a73e8;
+    }
+
+    .task {
+      padding: 12px 0;
+      border-bottom: 1px dashed #ddd;
+      display: grid;
+      grid-template-columns: 1fr 160px 260px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .task:last-child { border-bottom: none; }
+
+    input {
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+
+    .result {
+      font-size: 14px;
+    }
+
+    .ok { color: #0a7; font-weight: 600; }
+    .bad { color: #c00; font-weight: 600; }
+
+    .actions {
+      margin-top: 20px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 12px 18px;
+      border-radius: 12px;
+      border: none;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .start { background: #4caf50; color: #fff; }
+    .check { background: #1a73e8; color: #fff; }
+    .new { background: #f2f2f2; }
+
+    .score {
+      margin-top: 16px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .hint {
+      margin-bottom: 14px;
+      color: #555;
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+  <div class="top">
+    <h1>Százalékszámítás – Szöveges feladatok</h1>
+    <div class="timer" id="timer">Idő: 00:00</div>
+  </div>
+
+  <p class="hint">
+    Számold ki az új árat! Az eredményt <b>forintban</b> add meg (pl. 5400).
+  </p>
+
+  <div id="tasks"></div>
+
+  <div class="actions">
+    <button class="start" onclick="startQuiz()">Kezdés</button>
+    <button class="check" onclick="checkAnswers()">Ellenőrzés</button>
+    <button class="new" onclick="startQuiz()">Új feladatsor</button>
+  </div>
+
+  <div class="score" id="score"></div>
+</div>
+
+<script>
+let tasks = [];
+let timerInterval = null;
+let seconds = 0;
+
+function startTimer() {
+  clearInterval(timerInterval);
+  seconds = 0;
+  timerInterval = setInterval(() => {
+    seconds++;
+    const m = String(Math.floor(seconds / 60)).padStart(2, "0");
+    const s = String(seconds % 60).padStart(2, "0");
+    document.getElementById("timer").textContent = `Idő: ${m}:${s}`;
+  }, 1000);
+}
+
+function randInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function generateTasks() {
+  const items = ["cipő", "kabát", "táska", "pulóver", "sapka", "nadrág", "póló"];
+  tasks = [];
+
+  for (let i = 0; i < 20; i++) {
+    const price = randInt(2000, 12000);
+    const percent = randInt(5, 30);
+    const increase = Math.random() < 0.5;
+    const item = items[randInt(0, items.length - 1)];
+
+    let text, answer;
+    if (increase) {
+      text = `Egy boltban egy ${item} ára ${price} Ft volt. Az árat ${percent}%-kal megemelték. Mennyi lett az új ár?`;
+      answer = Math.round(price * (1 + percent / 100));
+    } else {
+      text = `Egy boltban egy ${item} ára ${price} Ft volt. Az árat ${percent}%-kal csökkentették. Mennyi lett az új ár?`;
+      answer = Math.round(price * (1 - percent / 100));
+    }
+
+    tasks.push({ text, answer });
+  }
+}
+
+function startQuiz() {
+  generateTasks();
+  startTimer();
+  const container = document.getElementById("tasks");
+  container.innerHTML = "";
+
+  tasks.forEach((t, i) => {
+    const div = document.createElement("div");
+    div.className = "task";
+    div.innerHTML = `
+      <div>${i + 1}. ${t.text}</div>
+      <input type="number" id="ans_${i}" placeholder="Ft">
+      <div class="result" id="res_${i}"></div>
+    `;
+    container.appendChild(div);
+  });
+
+  document.getElementById("score").textContent = "";
+}
+
+function checkAnswers() {
+  clearInterval(timerInterval);
+  let correct = 0;
+
+  tasks.forEach((t, i) => {
+    const user = Number(document.getElementById(`ans_${i}`).value);
+    const res = document.getElementById(`res_${i}`);
+
+    if (user === t.answer) {
+      correct++;
+      res.innerHTML = `<span class="ok">Helyes ✓</span> (${t.answer} Ft)`;
+    } else {
+      res.innerHTML = `<span class="bad">Nem jó ✗</span> (helyes: ${t.answer} Ft)`;
+    }
+  });
+
+  document.getElementById("score").textContent =
+    `Eredmény: ${correct} / 20 helyes • Idő: ${document.getElementById("timer").textContent.replace("Idő: ", "")}`;
+}
+
+// induláskor
+startQuiz();
+</script>
+</body>
+</html>
