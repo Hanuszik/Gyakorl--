@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>5. osztály – Szöveges feladatok (tizedes törtek)</title>
+  <style>
+    body{font-family:Arial, sans-serif;background:#f4f4f6;padding:20px;}
+    .lap{max-width:900px;margin:auto;background:#fff;padding:20px;border-radius:12px;}
+    h1{margin:0 0 10px;text-align:center;}
+    .sub{margin:0 0 18px;color:#444;text-align:center;}
+    .feladat{margin:14px 0;padding:12px;border:1px solid #ddd;border-radius:10px;background:#fafafa;}
+    .sor{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+    .cim{font-weight:700;}
+    input{font-size:16px;padding:8px;width:170px;border-radius:8px;border:1px solid #bbb;}
+    .gombok{margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;}
+    button{padding:10px 16px;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:16px;}
+    .ellenorzes{background:#222;color:#fff;}
+    .uj{background:#e5e5ea;color:#111;}
+    .eredmeny{display:none;margin-top:18px;padding:14px;border:1px solid #ccc;border-radius:10px;background:#fff;}
+    .jo{color:green;font-weight:800;}
+    .rossz{color:#c00;font-weight:800;}
+    .kicsi{color:#444;font-size:0.95rem;}
+  </style>
+</head>
+<body>
+  <div class="lap">
+    <h1>Szöveges feladatok – 5. osztály</h1>
+    <p class="sub">6 feladat: 3 összeadás, 3 kivonás • Vesszőt vagy pontot is írhatsz (pl. 3,5 vagy 3.5).</p>
+
+    <div id="feladatok"></div>
+
+    <div class="gombok">
+      <button class="ellenorzes" type="button" onclick="ellenorzes()">Ellenőrzés</button>
+      <button class="uj" type="button" onclick="ujFeladatsor()">Új feladatsor</button>
+    </div>
+
+    <div class="eredmeny" id="eredmeny"></div>
+  </div>
+
+<script>
+  let tasks = []; // {text, answer, id}
+
+  function rndInt(min, max){ // inclusive
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function toDec(n, d){
+    const p = Math.pow(10, d);
+    return Math.round(n * p) / p;
+  }
+
+  function fmtHu(n){
+    // normál, nem felesleges nullákkal
+    return String(n).replace(".", ",");
+  }
+
+  function parseHu(s){
+    if (s == null) return NaN;
+    const t = String(s).trim().replace(",", ".");
+    return Number(t);
+  }
+
+  function nearlyEqual(a,b){
+    return Math.abs(a-b) < 1e-9;
+  }
+
+  function genMoney(minFt, maxFt, decimals){ // Ft tizedesekkel (pl. 10 Ft, 2 tizedes)
+    const factor = Math.pow(10, decimals);
+    const v = rndInt(minFt*factor, maxFt*factor)/factor;
+    return toDec(v, decimals);
+  }
+
+  function genKg(min, max, decimals){
+    const factor = Math.pow(10, decimals);
+    const v = rndInt(min*factor, max*factor)/factor;
+    return toDec(v, decimals);
+  }
+
+  function genKm(min, max, decimals){
+    const factor = Math.pow(10, decimals);
+    const v = rndInt(min*factor, max*factor)/factor;
+    return toDec(v, decimals);
+  }
+
+  function makeTasks(){
+    tasks = [];
+
+    // 3 összeadás
+    // 1) pénz
+    {
+      const a = genMoney(350, 1990, 2);
+      const b = genMoney(120, 990, 2);
+      const ans = toDec(a + b, 2);
+      tasks.push({
+        text: `A büfében egy szendvics ${fmtHu(a)} Ft, egy üdítő ${fmtHu(b)} Ft. Mennyit fizetsz összesen? (Ft)`,
+        answer: ans
+      });
+    }
+
+    // 2) tömeg
+    {
+      const a = genKg(0.30, 2.50, 2);
+      const b = genKg(0.20, 1.80, 2);
+      const ans = toDec(a + b, 2);
+      tasks.push({
+        text: `Dóri ${fmtHu(a)} kg almát és ${fmtHu(b)} kg körtét vett. Hány kg gyümölcsöt vett összesen? (kg)`,
+        answer: ans
+      });
+    }
+
+    // 3) távolság
+    {
+      const a = genKm(0.5, 6.5, 1);
+      const b = genKm(0.5, 6.5, 1);
+      const ans = toDec(a + b, 1);
+      tasks.push({
+        text: `Bence reggel ${fmtHu(a)} km-t sétált, délután még ${fmtHu(b)} km-t. Mennyi volt a napi séta összesen? (km)`,
+        answer: ans
+      });
+    }
+
+    // 3 kivonás
+    // 4) pénz visszajáró
+    {
+      const fizet = genMoney(1000, 5000, 0); // egész Ft
+      const ar = genMoney(120, Math.min(4990, fizet-10), 2);
+      const ans = toDec(fizet - ar, 2);
+      tasks.push({
+        text: `Zsófi ${fmtHu(fizet)} Ft-tal fizetett. A vásárlás ára ${fmtHu(ar)} Ft volt. Mennyi visszajárót kap? (Ft)`,
+        answer: ans
+      });
+    }
+
+    // 5) tömeg maradék
+    {
+      const volt = genKg(1.50, 5.00, 2);
+      const fel = genKg(0.20, Math.max(0.21, volt-0.10), 2);
+      const ans = toDec(volt - fel, 2);
+      tasks.push({
+        text: `Egy zacskóban ${fmtHu(volt)} kg liszt volt. Felhasználtak belőle ${fmtHu(fel)} kg-ot. Mennyi liszt maradt? (kg)`,
+        answer: ans
+      });
+    }
+
+    // 6) hossz maradék
+    {
+      const total = genKm(2.0, 12.0, 1);
+      const done = genKm(0.5, Math.max(0.6, total-0.2), 1);
+      const ans = toDec(total - done, 1);
+      tasks.push({
+        text: `Egy túra útvonala ${fmtHu(total)} km. A csoport már megtett ${fmtHu(done)} km-t. Hány km van még hátra? (km)`,
+        answer: ans
+      });
+    }
+  }
+
+  function render(){
+    const div = document.getElementById("feladatok");
+    div.innerHTML = "";
+    tasks.forEach((t, idx) => {
+      const n = idx + 1;
+      div.innerHTML += `
+        <div class="feladat">
+          <div class="cim">${n}. feladat</div>
+          <div class="kicsi" style="margin:6px 0 10px;">${t.text}</div>
+          <div class="sor">
+            <label for="f${n}"><strong>Válasz:</strong></label>
+            <input id="f${n}" type="text" placeholder="Írd be a számot" />
+          </div>
+        </div>
+      `;
+    });
+
+    const e = document.getElementById("eredmeny");
+    e.style.display = "none";
+    e.innerHTML = "";
+  }
+
+  function lockInputs(locked){
+    for (let i=1;i<=tasks.length;i++){
+      const el = document.getElementById("f"+i);
+      if (el) el.disabled = locked;
+    }
+  }
+
+  function ellenorzes(){
+    let ok = 0;
+    let html = "<h3>Eredmény</h3>";
+
+    for (let i=1;i<=tasks.length;i++){
+      const input = document.getElementById("f"+i);
+      const v = parseHu(input.value);
+      const ans = tasks[i-1].answer;
+
+      if (Number.isFinite(v) && nearlyEqual(v, ans)){
+        ok++;
+        html += `<p>${i}. feladat: <span class="jo">JÓ</span></p>`;
+      } else {
+        html += `<p>${i}. feladat: <span class="rossz">HIBÁS</span> (helyes: ${fmtHu(ans)})</p>`;
+      }
+    }
+
+    html += `<p><strong>Összesen: ${ok} / ${tasks.length}</strong></p>`;
+
+    lockInputs(true);
+
+    const e = document.getElementById("eredmeny");
+    e.innerHTML = html;
+    e.style.display = "block";
+  }
+
+  function ujFeladatsor(){
+    makeTasks();
+    render();
+    lockInputs(false);
+  }
+
+  // Betöltéskor automatikusan
+  ujFeladatsor();
+</script>
+</body>
+</html>

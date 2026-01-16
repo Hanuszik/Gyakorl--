@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <title>Tizedes törtek kivonása – vegyes helyiérték</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f6;
+      padding: 20px;
+    }
+    .lap {
+      max-width: 740px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+    }
+    h1 { text-align: center; }
+    .feladat {
+      margin: 14px 0;
+      font-size: 18px;
+    }
+    input {
+      font-size: 16px;
+      padding: 6px;
+      width: 160px;
+    }
+    button {
+      margin-top: 18px;
+      margin-right: 10px;
+      padding: 10px 16px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+    }
+    .ellenorzes { background: #222; color: white; }
+    .uj { background: #e0e0e0; }
+    .eredmeny {
+      margin-top: 20px;
+      display: none;
+      padding: 15px;
+      background: #fafafa;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    .jo { color: green; font-weight: bold; }
+    .rossz { color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<div class="lap">
+  <h1>Tizedes törtek kivonása<br>(tized–század–ezred)</h1>
+
+  <div id="feladatok"></div>
+
+  <button class="ellenorzes" onclick="ellenorzes()">Ellenőrzés</button>
+  <button class="uj" onclick="ujFeladat()">Új feladat</button>
+
+  <div class="eredmeny" id="eredmeny"></div>
+</div>
+
+<script>
+  let feladatLista = [];
+  let megoldasok = [];
+
+  const helyiertekek = [1, 2, 3]; // tized, század, ezred
+
+  function randomSzam(min, max, tizedes) {
+    const sz = Math.pow(10, tizedes);
+    return Math.floor((Math.random() * (max - min) + min) * sz) / sz;
+  }
+
+  function valasszHelyiertek() {
+    return helyiertekek[Math.floor(Math.random() * helyiertekek.length)];
+  }
+
+  function generalFeladat() {
+    feladatLista = [];
+    megoldasok = [];
+
+    for (let i = 0; i < 5; i++) {
+      const t1 = valasszHelyiertek();
+      const t2 = valasszHelyiertek();
+
+      let a = randomSzam(10, 100, t1);
+      let b = randomSzam(0.1, a - 0.1, t2);
+
+      const maxTizedes = Math.max(t1, t2);
+      const eredmeny = Number((a - b).toFixed(maxTizedes));
+
+      feladatLista.push({ a, b });
+      megoldasok.push(eredmeny);
+    }
+
+    megjelenit();
+  }
+
+  function megjelenit() {
+    const div = document.getElementById("feladatok");
+    div.innerHTML = "";
+
+    for (let i = 0; i < feladatLista.length; i++) {
+      const f = feladatLista[i];
+      div.innerHTML += `
+        <div class="feladat">
+          ${i + 1}) ${f.a.toString().replace(".", ",")}
+          − ${f.b.toString().replace(".", ",")} =
+          <input type="text" id="f${i}">
+        </div>
+      `;
+    }
+
+    document.getElementById("eredmeny").style.display = "none";
+  }
+
+  function parseSzam(sz) {
+    return Number(sz.replace(",", "."));
+  }
+
+  function ellenorzes() {
+    let jo = 0;
+    let szoveg = "<h3>Eredmény</h3>";
+
+    for (let i = 0; i < 5; i++) {
+      const mező = document.getElementById("f" + i);
+      const valasz = parseSzam(mező.value);
+      mező.disabled = true;
+
+      if (Math.abs(valasz - megoldasok[i]) < 0.000001) {
+        jo++;
+        szoveg += `<p>${i + 1}. feladat: <span class="jo">JÓ</span></p>`;
+      } else {
+        szoveg += `<p>${i + 1}. feladat: <span class="rossz">HIBÁS</span>
+        (helyes: ${megoldasok[i].toString().replace(".", ",")})</p>`;
+      }
+    }
+
+    szoveg += `<p><strong>${jo} / 5 helyes</strong></p>`;
+    const e = document.getElementById("eredmeny");
+    e.innerHTML = szoveg;
+    e.style.display = "block";
+  }
+
+  function ujFeladat() {
+    generalFeladat();
+  }
+
+  // automatikus generálás betöltéskor
+  generalFeladat();
+</script>
+
+</body>
+</html>

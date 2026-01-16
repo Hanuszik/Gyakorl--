@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tizedes törtek – összeadás és kivonás (szöveges feladatok)</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body { margin: 0; background:#f6f7fb; color:#111; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 20px; }
+    h1 { font-size: 20px; margin: 0 0 6px; }
+    .sub { margin: 0 0 18px; color:#444; }
+    .controls { display:flex; gap:10px; flex-wrap: wrap; margin: 14px 0 18px; }
+    button {
+      border: 0; padding: 10px 14px; border-radius: 10px; cursor: pointer;
+      background:#1f6feb; color:white; font-weight: 600;
+    }
+    button.secondary { background:#2b2f36; }
+    button:active { transform: translateY(1px); }
+    .grid { display:grid; gap:12px; }
+    .card {
+      background:white; border-radius: 14px; padding: 14px 14px 12px;
+      box-shadow: 0 6px 18px rgba(0,0,0,.06);
+      border: 1px solid rgba(0,0,0,.06);
+    }
+    .meta { display:flex; justify-content: space-between; gap:10px; flex-wrap: wrap; }
+    .tag { font-size: 12px; padding: 4px 8px; border-radius: 999px; background:#eef2ff; color:#243b8a; }
+    .task { margin: 10px 0 12px; line-height: 1.35; }
+    .answerRow { display:flex; gap:10px; flex-wrap: wrap; align-items: center; }
+    input[type="text"]{
+      padding: 10px 12px; border-radius: 10px; border:1px solid #cfd6e4; min-width: 220px;
+      font-size: 16px;
+    }
+    .hint { font-size: 12px; color:#666; }
+    .result { margin-top: 10px; font-size: 14px; }
+    .ok { color:#0a7a2f; font-weight: 700; }
+    .bad { color:#b00020; font-weight: 700; }
+    .small { font-size: 12px; color:#555; margin-top: 4px; }
+    .footerNote { margin-top: 16px; color:#555; font-size: 13px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Tizedes törtek – szöveges feladatok</h1>
+    <p class="sub">6 db feladat: 3 összeadás + 3 kivonás. Minden feladatban <b>legalább 3–4 mennyiség</b> szerepel. (Tized / század / ezred vegyesen.)</p>
+
+    <div class="controls">
+      <button id="checkBtn">Ellenőrzés</button>
+      <button id="newBtn" class="secondary">Új feladatsor</button>
+    </div>
+
+    <div id="tasks" class="grid"></div>
+
+    <p class="footerNote">
+      Tipp: a választ beírhatod <span class="mono">3,75</span> vagy <span class="mono">3.75</span> formában is.
+      A program kis kerekítési eltérést elvisel.
+    </p>
+  </div>
+
+<script>
+(function(){
+  // --- Segédfüggvények ---
+  const rnd = (min, max) => Math.random() * (max - min) + min;
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  // készít egy tizedes számot 1/2/3 tizedesjeggyel (tized/század/ezred vegyesen)
+  function makeDecimal(min=0.2, max=9.9){
+    const dp = pick([1,2,3]); // tized, század, ezred
+    const factor = Math.pow(10, dp);
+    const v = Math.round(rnd(min, max) * factor) / factor;
+    return { value: v, dp };
+  }
+
+  // magyar formázás (vessző), de megjelenítéshez szép
+  function hu(v, dpHint=3){
+    // dpHint csak maximum, a felesleges nullákat levágjuk
+    let s = v.toFixed(dpHint);
+    s = s.replace(/\.?0+$/,''); // levágás
+    return s.replace('.', ',');
+  }
+
+  function parseHuNumber(str){
+    if(!str) return NaN;
+    const cleaned = String(str).trim().replace(/\s+/g,'').replace(',', '.');
+    return Number(cleaned);
+  }
+
+  function almostEqual(a,b){
+    // tűrés ezredes feladatokhoz
+    return Math.abs(a - b) <= 0.0005;
+  }
+
+  // --- Feladat-sablonok ---
+  const addTemplates = [
+    // 4 mennyiség
+    (nums) => ({
+      title: "Összeadás",
+      text:
+        `Egy bevásárlásnál Anna ennyit fizetett: kenyér ${hu(nums[0])} €,
+         tej ${hu(nums[1])} €, gyümölcs ${hu(nums[2])} €, csokoládé ${hu(nums[3])} €.
+         Mennyi volt a fizetendő összesen?`,
+      answer: nums.reduce((a,b)=>a+b,0)
+    }),
+    (nums) => ({
+      title: "Összeadás",
+      text:
+        `A futó edzésen Péter három körben ennyit futott: ${hu(nums[0])} km, ${hu(nums[1])} km, ${hu(nums[2])} km,
+         majd még ${hu(nums[3])} km levezetésként. Hány kilométert futott összesen?`,
+      answer: nums.reduce((a,b)=>a+b,0)
+    }),
+    (nums) => ({
+      title: "Összeadás",
+      text:
+        `Egy recepthez ezekből a mennyiségekből használtak fel lisztet: ${hu(nums[0])} kg, ${hu(nums[1])} kg,
+         ${hu(nums[2])} kg és ${hu(nums[3])} kg. Mennyi lisztet használtak összesen?`,
+      answer: nums.reduce((a,b)=>a+b,0)
+    })
+  ];
+
+  const subTemplates = [
+    // 4 mennyiség: kezdő - három levonás
+    (start, nums) => ({
+      title: "Kivonás",
+      text:
+        `Egy üvegben ${hu(start)} liter üdítő volt. Megittak belőle ${hu(nums[0])} litert,
+         majd még ${hu(nums[1])} litert, végül ${hu(nums[2])} litert. Mennyi üdítő maradt?`,
+      answer: start - nums[0] - nums[1] - nums[2]
+    }),
+    (start, nums) => ({
+      title: "Kivonás",
+      text:
+        `A pénztárcában ${hu(start)} € volt. Elköltöttek ${hu(nums[0])} €-t egy füzetre,
+         ${hu(nums[1])} €-t uzsonnára és ${hu(nums[2])} €-t buszjegyre. Mennyi pénz maradt?`,
+      answer: start - nums[0] - nums[1] - nums[2]
+    }),
+    (start, nums) => ({
+      title: "Kivonás",
+      text:
+        `Egy szalag hossza ${hu(start)} méter. Levágtak belőle ${hu(nums[0])} m-t,
+         aztán ${hu(nums[1])} m-t, majd ${hu(nums[2])} m-t. Mekkora hosszúság maradt a szalagból?`,
+      answer: start - nums[0] - nums[1] - nums[2]
+    })
+  ];
+
+  // --- Állapot ---
+  let current = []; // {type, text, answer}
+
+  function genAddProblem(){
+    const nums = [makeDecimal(0.4, 9.9), makeDecimal(0.4, 9.9), makeDecimal(0.4, 9.9), makeDecimal(0.4, 9.9)]
+      .map(o => o.value);
+    const tpl = pick(addTemplates);
+    return tpl(nums);
+  }
+
+  function genSubProblem(){
+    // három levonandó szám, majd start úgy, hogy biztosan pozitív maradjon
+    const a = makeDecimal(0.2, 6.5).value;
+    const b = makeDecimal(0.2, 6.5).value;
+    const c = makeDecimal(0.2, 6.5).value;
+    const sum = a + b + c;
+
+    // start legyen nagyobb, és kapjon vegyes tizedeseket is
+    const extra = makeDecimal(0.3, 6.0).value;
+    let start = sum + extra;
+
+    // kerekítés vegyesen (1-3 tizedes)
+    const dp = pick([1,2,3]);
+    const factor = Math.pow(10, dp);
+    start = Math.round(start * factor) / factor;
+
+    const tpl = pick(subTemplates);
+    return tpl(start, [a,b,c]);
+  }
+
+  function buildUI(){
+    const el = document.getElementById("tasks");
+    el.innerHTML = "";
+
+    current.forEach((p, idx) => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="meta">
+          <div class="tag">${idx+1}. feladat • ${p.title}</div>
+          <div class="hint">Válasz: tizedes szám</div>
+        </div>
+        <div class="task">${p.text}</div>
+        <div class="answerRow">
+          <label for="a${idx}"><b>Válasz:</b></label>
+          <input id="a${idx}" type="text" placeholder="pl. 12,345" inputmode="decimal" />
+          <span class="hint">Elfogadott: vessző vagy pont</span>
+        </div>
+        <div id="r${idx}" class="result"></div>
+      `;
+      el.appendChild(card);
+    });
+  }
+
+  function newSet(){
+    current = [];
+    // 3 összeadás
+    for(let i=0;i<3;i++) current.push(genAddProblem());
+    // 3 kivonás
+    for(let i=0;i<3;i++) current.push(genSubProblem());
+
+    // ha bármelyik kivonás véletlenül negatív lett (ritka), regeneráljuk azt a feladatot
+    current = current.map(p => {
+      if(p.title === "Kivonás" && p.answer < 0) return genSubProblem();
+      return p;
+    });
+
+    buildUI();
+  }
+
+  function check(){
+    current.forEach((p, idx) => {
+      const input = document.getElementById(`a${idx}`).value;
+      const userVal = parseHuNumber(input);
+      const out = document.getElementById(`r${idx}`);
+
+      if(Number.isNaN(userVal)){
+        out.innerHTML = `<span class="bad">Hiányzó vagy hibás szám.</span>
+                         <div class="small">Írj be egy tizedes számot (pl. 3,75).</div>`;
+        return;
+      }
+
+      const ok = almostEqual(userVal, p.answer);
+      if(ok){
+        out.innerHTML = `<span class="ok">Helyes!</span>
+                         <div class="small">Eredmény: ${hu(p.answer, 3)}</div>`;
+      } else {
+        out.innerHTML = `<span class="bad">Nem jó.</span>
+                         <div class="small">Helyes eredmény: <b>${hu(p.answer, 3)}</b></div>`;
+      }
+    });
+  }
+
+  document.getElementById("newBtn").addEventListener("click", newSet);
+  document.getElementById("checkBtn").addEventListener("click", check);
+
+  // indulás
+  newSet();
+})();
+</script>
+</body>
+</html>
